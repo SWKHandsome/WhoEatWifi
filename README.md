@@ -5,6 +5,10 @@
 </p>
 
 <p align="center">
+  📖 <a href="README/README(ZH).md">简体中文文档</a> | <a href="README.md">English Documentation</a>
+</p>
+
+<p align="center">
   <img src="https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011%20(x64)-0078D6.svg?style=for-the-badge&logo=windows" alt="Platform" />
   <img src="https://img.shields.io/badge/.NET%20Framework-4.8-512BD4.svg?style=for-the-badge&logo=dotnet" alt=".NET 4.8" />
   <img src="https://img.shields.io/badge/Binary%20Size-~94%20KB-22C55E.svg?style=for-the-badge" alt="Size" />
