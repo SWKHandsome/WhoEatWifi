@@ -1,0 +1,485 @@
+<Window x:Class="WhoEatWifi.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="WhoEatWifi (谁吃了我的 Wi-Fi) - 实时流量监控与防偷跑卫士"
+        Height="780" Width="1140" MinHeight="600" MinWidth="900"
+        WindowStartupLocation="CenterScreen"
+        Background="#F8FAFC"
+        FontFamily="Microsoft YaHei, Segoe UI, sans-serif">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/> <!-- Top Brand Bar -->
+            <RowDefinition Height="Auto"/> <!-- Notification Banner -->
+            <RowDefinition Height="Auto"/> <!-- Dashboard Cards -->
+            <RowDefinition Height="*"/>    <!-- Tabs Content -->
+            <RowDefinition Height="Auto"/> <!-- Bottom Status Bar -->
+        </Grid.RowDefinitions>
+
+        <!-- 1. Top Brand & Window Controls -->
+        <Border Grid.Row="0" Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1" Padding="18,12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="📶" FontSize="24" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                    <StackPanel VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="WhoEatWifi" FontSize="18" FontWeight="Bold" Foreground="#0F172A"/>
+                            <Border Background="#EEF2FF" CornerRadius="4" Padding="6,2" Margin="10,0,0,0" VerticalAlignment="Center">
+                                <TextBlock x:Name="txtBadgeTitle" Text="谁吃了我的 Wi-Fi" FontSize="11" Foreground="#4F46E5" FontWeight="SemiBold"/>
+                            </Border>
+                        </StackPanel>
+                        <TextBlock x:Name="txtAppSubtitle" Text="专为 Wi-Fi 与移动热点打造的高精度网络流量监控与防偷跑卫士" FontSize="11" Foreground="#64748B" Margin="0,2,0,0"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <ComboBox x:Name="cboLanguage" Width="105" SelectionChanged="OnLanguageChanged" Margin="0,0,12,0" VerticalAlignment="Center">
+                        <ComboBoxItem Content="English" IsSelected="True"/>
+                        <ComboBoxItem Content="简体中文"/>
+                    </ComboBox>
+                    <CheckBox x:Name="chkAlwaysOnTop" Content="窗口置顶" VerticalAlignment="Center" Margin="0,0,16,0" Checked="OnAlwaysOnTopChanged" Unchecked="OnAlwaysOnTopChanged"/>
+                    <Button x:Name="btnMinToTray" Style="{StaticResource ModernButton}" Content="📥 最小化到托盘" Click="OnMinimizeToTrayClick" Margin="0,0,8,0"/>
+                    <Button x:Name="btnOpenWifiSettings" Style="{StaticResource ModernButton}" Content="打开 Windows 网络设置" Click="OnOpenWifiSettingsClick" Margin="0,0,8,0"/>
+                    <Button x:Name="btnRefresh" Style="{StaticResource ModernButton}" Content="🔄 刷新" Click="OnRefreshClick"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- 2. Dynamic Notification Banner -->
+        <Border x:Name="bannerNotification" Grid.Row="1" Background="#FEF3C7" BorderBrush="#FCD34D" BorderThickness="0,0,0,1" Padding="16,10" Visibility="Collapsed">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock x:Name="txtBannerMessage" Text="🔔 提示消息" Foreground="#92400E" FontWeight="Medium" VerticalAlignment="Center"/>
+                <Button Grid.Column="1" Content="✕" Background="Transparent" BorderThickness="0" Foreground="#92400E" Cursor="Hand" Click="OnDismissBannerClick" FontWeight="Bold" Padding="6,2"/>
+            </Grid>
+        </Border>
+
+        <!-- 3. Dashboard Status Cards -->
+        <Border Grid.Row="2" Padding="18,14,18,6">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="1.2*"/>
+                    <ColumnDefinition Width="1.1*"/>
+                    <ColumnDefinition Width="1.1*"/>
+                    <ColumnDefinition Width="1.2*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Card 1: Network & SSID -->
+                <Border Grid.Column="0" Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="14,12" Margin="0,0,10,0">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                            <TextBlock Text="🌐" FontSize="14" Margin="0,0,6,0"/>
+                            <TextBlock x:Name="lblCardNetworkTitle" Text="当前连接网络" FontSize="12" Foreground="#64748B" FontWeight="SemiBold"/>
+                        </StackPanel>
+                        <TextBlock x:Name="txtSsid" Text="检测中..." FontSize="18" FontWeight="Bold" Foreground="#0F172A" TextTrimming="CharacterEllipsis"/>
+                        <TextBlock x:Name="txtAdapter" Text="网卡: Wi-Fi" FontSize="11" Foreground="#94A3B8" Margin="0,2,0,8" TextTrimming="CharacterEllipsis"/>
+                        <StackPanel Orientation="Horizontal">
+                            <Border x:Name="badgeMetered" Background="#DCFCE7" CornerRadius="4" Padding="6,2" VerticalAlignment="Center">
+                                <TextBlock x:Name="txtMeteredStatus" Text="按流量计费已关闭" FontSize="11" Foreground="#15803D" FontWeight="Medium"/>
+                            </Border>
+                            <Button x:Name="btnToggleMetered" Style="{StaticResource ModernButton}" Content="切换计费" Click="OnToggleMeteredClick" Margin="8,0,0,0" Padding="6,2" FontSize="11"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Card 2: Real-time Speeds -->
+                <Border Grid.Column="1" Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="14,12" Margin="0,0,10,0">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                            <TextBlock Text="⚡" FontSize="14" Margin="0,0,6,0"/>
+                            <TextBlock x:Name="lblCardSpeedTitle" Text="实时传输速率" FontSize="12" Foreground="#64748B" FontWeight="SemiBold"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,2,0,2">
+                            <TextBlock Text="⬇️ " FontSize="14" Foreground="#2563EB" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="txtTotalDownloadSpeed" Text="0 B/s" FontSize="20" FontWeight="Bold" Foreground="#2563EB"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="⬆️ " FontSize="12" Foreground="#059669" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="txtTotalUploadSpeed" Text="0 B/s" FontSize="13" Foreground="#059669" FontWeight="SemiBold"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Card 3: Session Data Usage -->
+                <Border Grid.Column="2" Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="14,12" Margin="0,0,10,0">
+                    <StackPanel>
+                        <Grid Margin="0,0,0,4">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="📦" FontSize="14" Margin="0,0,6,0"/>
+                                <TextBlock x:Name="lblCardSessionTitle" Text="本次连接已用流量" FontSize="12" Foreground="#64748B" FontWeight="SemiBold"/>
+                            </StackPanel>
+                            <Button x:Name="btnResetSession" Style="{StaticResource ModernButton}" Content="归零重算" Click="OnResetSessionClick" HorizontalAlignment="Right" Padding="6,2" FontSize="10"/>
+                        </Grid>
+                        <TextBlock x:Name="txtSessionTotalData" Text="0 B" FontSize="20" FontWeight="Bold" Foreground="#0F172A"/>
+                        <TextBlock x:Name="txtSessionBreakdown" Text="下载: 0 B | 上传: 0 B" FontSize="11" Foreground="#64748B" Margin="0,2,0,0"/>
+                        <TextBlock x:Name="txtSessionDuration" Text="连接时长: 0 秒" FontSize="11" Foreground="#94A3B8" Margin="0,2,0,0"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Card 4: Hotspot Budget & Guard -->
+                <Border Grid.Column="3" Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="14,12">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                            <TextBlock Text="🛡️" FontSize="14" Margin="0,0,6,0"/>
+                            <TextBlock x:Name="lblCardBudgetTitle" Text="热点预算限额报警" FontSize="12" Foreground="#64748B" FontWeight="SemiBold"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,2,0,6">
+                            <TextBlock x:Name="lblBudgetLabel" Text="设定额度: " FontSize="12" Foreground="#475569" VerticalAlignment="Center"/>
+                            <ComboBox x:Name="cboBudgetLimit" Width="100" SelectionChanged="OnBudgetLimitChanged">
+                                <ComboBoxItem x:Name="cboItemNoLimit" Content="不限额" IsSelected="True"/>
+                                <ComboBoxItem Content="500 MB"/>
+                                <ComboBoxItem Content="1.0 GB"/>
+                                <ComboBoxItem Content="2.0 GB"/>
+                                <ComboBoxItem Content="5.0 GB"/>
+                            </ComboBox>
+                        </StackPanel>
+                        <TextBlock x:Name="lblBudgetTip" Text="💡 提示: 设为计费网络可自动暂停 Windows 更新与 OneDrive 后台下载" FontSize="10" Foreground="#64748B" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- 4. Tabs Content -->
+        <Border Grid.Row="3" Padding="18,6,18,12">
+            <TabControl x:Name="mainTabControl" Background="Transparent" BorderThickness="0">
+                <TabControl.Resources>
+                    <Style TargetType="TabItem">
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="TabItem">
+                                    <Border x:Name="tabBorder" Background="Transparent" BorderThickness="0,0,0,2" BorderBrush="Transparent" Padding="16,10" Margin="0,0,8,0" Cursor="Hand">
+                                        <ContentPresenter ContentSource="Header" TextBlock.FontSize="13" TextBlock.FontWeight="SemiBold" TextBlock.Foreground="#64748B"/>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter TargetName="tabBorder" Property="BorderBrush" Value="#2563EB"/>
+                                            <Setter Property="TextBlock.Foreground" Value="#2563EB"/>
+                                        </Trigger>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="TextBlock.Foreground" Value="#1E293B"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </TabControl.Resources>
+
+                <!-- TAB 1: 实时监控 (Real-time Monitor) -->
+                <TabItem x:Name="tabRealtime" Header="📊 实时流量监控 (Real-time)">
+                    <Border Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="14" Margin="0,8,0,0">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/> <!-- Top Segmented Breakdown Bar -->
+                                <RowDefinition Height="Auto"/> <!-- Search & Filter Bar -->
+                                <RowDefinition Height="*"/>    <!-- Processes DataGrid -->
+                            </Grid.RowDefinitions>
+
+                            <!-- Top Segmented Bar: 手机系统风格流量占比分布 (Traffic Breakdown) -->
+                            <Border Grid.Row="0" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="14,10" Margin="0,0,0,12">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+
+                                    <!-- Title & Summary -->
+                                    <Grid Grid.Row="0" Margin="0,0,0,8">
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <TextBlock Text="📱" FontSize="13" Margin="0,0,6,0"/>
+                                            <TextBlock x:Name="lblBreakdownTitle" Text="本次连接各 App 流量占比分布 (Traffic Breakdown)" FontWeight="Bold" FontSize="12" Foreground="#0F172A"/>
+                                            <TextBlock x:Name="lblBreakdownSubtitle" Text="按各应用累计总消耗计算占比" FontSize="11" Foreground="#64748B" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                        <TextBlock x:Name="txtBreakdownSummary" HorizontalAlignment="Right" Text="等待产生流量..." FontSize="11" Foreground="#2563EB" FontWeight="SemiBold"/>
+                                    </Grid>
+
+                                    <!-- Horizontal Stacked Proportional Bar -->
+                                    <Border Grid.Row="1" Height="14" CornerRadius="7" Background="#E2E8F0" ClipToBounds="True" Margin="0,0,0,8">
+                                        <Grid x:Name="gridStackedBar">
+                                        </Grid>
+                                    </Border>
+
+                                    <!-- Legend items below bar -->
+                                    <WrapPanel x:Name="panelBreakdownLegend" Grid.Row="2" Orientation="Horizontal" Margin="0,2,0,0">
+                                    </WrapPanel>
+                                </Grid>
+                            </Border>
+
+                            <!-- Filter & Search Toolbar -->
+                            <Grid Grid.Row="1" Margin="0,0,0,12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="320"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <TextBox x:Name="txtSearchFilter" Grid.Column="0" Padding="8,6" FontSize="12"
+                                         Text="搜索应用名称或 PID..." Foreground="#94A3B8"
+                                         GotFocus="OnSearchGotFocus" LostFocus="OnSearchLostFocus" TextChanged="OnSearchTextChanged"/>
+
+                                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock x:Name="lblSortLabel" Text="排序方式: " FontSize="12" Foreground="#64748B" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                    <ComboBox x:Name="cboSortOption" Width="170" SelectionChanged="OnSortOptionChanged">
+                                        <ComboBoxItem x:Name="cboSortItem0" Content="按累计流量占比 % (默认)" IsSelected="True"/>
+                                        <ComboBoxItem x:Name="cboSortItem1" Content="按实时下载速度"/>
+                                        <ComboBoxItem x:Name="cboSortItem2" Content="按应用名称"/>
+                                    </ComboBox>
+                                </StackPanel>
+                            </Grid>
+
+                            <!-- Processes DataGrid -->
+                            <DataGrid x:Name="gridProcesses" Grid.Row="2" AutoGenerateColumns="False" CanUserAddRows="False"
+                                      IsReadOnly="True" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#F1F5F9"
+                                      HeadersVisibility="Column" BorderThickness="0" Background="Transparent"
+                                      RowHeight="44">
+                                <DataGrid.ColumnHeaderStyle>
+                                    <Style TargetType="DataGridColumnHeader">
+                                        <Setter Property="Background" Value="#F8FAFC"/>
+                                        <Setter Property="Foreground" Value="#475569"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                        <Setter Property="FontSize" Value="12"/>
+                                        <Setter Property="Padding" Value="10,8"/>
+                                        <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                                        <Setter Property="BorderBrush" Value="#E2E8F0"/>
+                                    </Style>
+                                </DataGrid.ColumnHeaderStyle>
+
+                                <DataGrid.Columns>
+                                    <!-- App & Process -->
+                                    <DataGridTemplateColumn x:Name="colApp" Header="应用程序 / 进程" Width="2.2*">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
+                                                    <Image Source="{Binding Icon}" Width="20" Height="20" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                                    <StackPanel VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding DisplayName}" FontSize="12" FontWeight="Medium" Foreground="#0F172A" TextTrimming="CharacterEllipsis"/>
+                                                        <TextBlock Text="{Binding ProcessId, StringFormat='PID: {0}'}" FontSize="10" Foreground="#94A3B8"/>
+                                                    </StackPanel>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+
+                                    <!-- Percentage Breakdown with Visual Progress Bar -->
+                                    <DataGridTemplateColumn x:Name="colPercentage" Header="本次流量占比 %" Width="1.8*" SortMemberPath="UsagePercentage">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <Grid VerticalAlignment="Center" Margin="8,0">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="54"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0" Text="{Binding FormattedUsagePercentage}"
+                                                               FontWeight="Bold" FontSize="12"
+                                                               Foreground="{Binding UsagePercentage, Converter={StaticResource PercentageToBrushConverter}}"
+                                                               VerticalAlignment="Center"/>
+                                                    <ProgressBar Grid.Column="1" Value="{Binding UsagePercentage}" Maximum="100" Minimum="0"
+                                                                 Style="{StaticResource ModernProgressBar}"
+                                                                 Foreground="{Binding UsagePercentage, Converter={StaticResource PercentageToBrushConverter}}"
+                                                                 VerticalAlignment="Center" Margin="6,0,8,0"/>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+
+                                    <!-- Live Download Speed -->
+                                    <DataGridTemplateColumn x:Name="colDownSpeed" Header="实时下载速度" Width="1.2*">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <Border Background="#F1F5F9" CornerRadius="4" Padding="8,4" HorizontalAlignment="Left" Margin="4,0">
+                                                    <TextBlock Text="{Binding FormattedDownloadSpeed}"
+                                                               Foreground="{Binding DownloadSpeedBps, Converter={StaticResource SpeedToBrushConverter}}"
+                                                               FontWeight="Bold" FontSize="12"/>
+                                                </Border>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+
+                                    <!-- Live Upload Speed -->
+                                    <DataGridTemplateColumn x:Name="colUpSpeed" Header="实时上传速度" Width="1.0*">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding FormattedUploadSpeed}" Foreground="#059669" FontSize="12" VerticalAlignment="Center" Margin="8,0"/>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+
+                                    <!-- Total Session Bytes -->
+                                    <DataGridTemplateColumn x:Name="colTotalBytes" Header="本次总消耗" Width="1.1*">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding FormattedTotalBytes}" FontWeight="Bold" Foreground="#1E293B" FontSize="12" VerticalAlignment="Center" Margin="8,0"/>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+
+                                    <!-- Actions -->
+                                    <DataGridTemplateColumn x:Name="colActions" Header="快捷操作" Width="1.4*">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="4,0">
+                                                    <Button Style="{StaticResource DangerButton}" Content="{Binding KillButtonText}" Click="OnKillProcessClick" Tag="{Binding ProcessId}" Margin="0,0,6,0"/>
+                                                    <Button Style="{StaticResource ModernButton}" Content="{Binding LocateButtonText}" Click="OnOpenFolderClick" Tag="{Binding ExecutablePath}" Padding="6,3" FontSize="11"/>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Grid>
+                    </Border>
+                </TabItem>
+
+                <!-- TAB 2: 近 1 小时历史记录 (1-Hour History) -->
+                <TabItem x:Name="tabHistory" Header="🕒 近 1 小时历史记录 (1-Hour History)">
+                    <Border Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="14" Margin="0,8,0,0">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/> <!-- Description bar -->
+                                <RowDefinition Height="*"/>    <!-- Master-Detail Split -->
+                            </Grid.RowDefinitions>
+
+                            <Border Grid.Row="0" Background="#F8FAFC" CornerRadius="6" Padding="12,8" Margin="0,0,0,12">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="💡" FontSize="13" Margin="0,0,8,0"/>
+                                    <TextBlock x:Name="lblHistoryTip" Text="系统会自动在您切换 Wi-Fi/热点时将上一网络的消耗归档。此页面保存最近 1 小时内的历史记录，超期记录自动淘汰释放。" FontSize="11" Foreground="#64748B" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Grid Grid.Row="1">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="380"/> <!-- History Sessions List -->
+                                    <ColumnDefinition Width="12"/>  <!-- Splitter space -->
+                                    <ColumnDefinition Width="*"/>   <!-- Drill-down App Consumption -->
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Left: Sessions List -->
+                                <Border Grid.Column="0" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="6" Padding="8">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="*"/>
+                                        </Grid.RowDefinitions>
+                                        <TextBlock x:Name="lblHistoryListTitle" Grid.Row="0" Text="过去 1 小时内的网络会话" FontWeight="SemiBold" FontSize="12" Foreground="#334155" Margin="4,4,4,8"/>
+                                        <ListBox x:Name="lstHistorySessions" Grid.Row="1" BorderThickness="0" Background="Transparent" SelectionChanged="OnHistorySessionSelectionChanged">
+                                            <ListBox.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="6" Padding="10,8" Margin="0,0,0,6">
+                                                        <Grid>
+                                                            <Grid.RowDefinitions>
+                                                                <RowDefinition Height="Auto"/>
+                                                                <RowDefinition Height="Auto"/>
+                                                            </Grid.RowDefinitions>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                            </Grid.ColumnDefinitions>
+
+                                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding Ssid}" FontWeight="Bold" FontSize="13" Foreground="#0F172A" TextTrimming="CharacterEllipsis"/>
+                                                            <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding FormattedTotal}" FontWeight="Bold" FontSize="13" Foreground="#2563EB"/>
+
+                                                            <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding FormattedTimeRange}" FontSize="11" Foreground="#64748B" Margin="0,4,0,0"/>
+                                                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding FormattedDuration}" FontSize="11" Foreground="#94A3B8" Margin="0,4,0,0"/>
+                                                        </Grid>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ListBox.ItemTemplate>
+                                        </ListBox>
+                                    </Grid>
+                                </Border>
+
+                                <!-- Right: Selected Session App Breakdown -->
+                                <Border Grid.Column="2" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="6" Padding="12">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="*"/>
+                                        </Grid.RowDefinitions>
+
+                                        <Border Grid.Row="0" Background="#EEF2FF" CornerRadius="6" Padding="12,10" Margin="0,0,0,10">
+                                            <StackPanel>
+                                                <TextBlock x:Name="txtHistoryDetailTitle" Text="请选择左侧历史会话以查看明细" FontWeight="Bold" FontSize="13" Foreground="#3730A3"/>
+                                                <TextBlock x:Name="txtHistoryDetailSubtitle" Text="" FontSize="11" Foreground="#6366F1" Margin="0,2,0,0"/>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <DataGrid x:Name="gridHistoryApps" Grid.Row="1" AutoGenerateColumns="False" CanUserAddRows="False"
+                                                  IsReadOnly="True" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#F1F5F9"
+                                                  HeadersVisibility="Column" BorderThickness="0" Background="Transparent"
+                                                  RowHeight="36">
+                                            <DataGrid.ColumnHeaderStyle>
+                                                <Style TargetType="DataGridColumnHeader">
+                                                    <Setter Property="Background" Value="#F8FAFC"/>
+                                                    <Setter Property="Foreground" Value="#475569"/>
+                                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                                    <Setter Property="FontSize" Value="11"/>
+                                                    <Setter Property="Padding" Value="8,6"/>
+                                                </Style>
+                                            </DataGrid.ColumnHeaderStyle>
+                                            <DataGrid.Columns>
+                                                <DataGridTextColumn x:Name="colHistApp" Header="应用 / 进程名称" Binding="{Binding DisplayName}" Width="2*"/>
+                                                <DataGridTemplateColumn x:Name="colHistPct" Header="该网络占比 %" Width="1.5*" SortMemberPath="UsagePercentage">
+                                                    <DataGridTemplateColumn.CellTemplate>
+                                                        <DataTemplate>
+                                                            <Grid VerticalAlignment="Center" Margin="6,0">
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="48"/>
+                                                                    <ColumnDefinition Width="*"/>
+                                                                </Grid.ColumnDefinitions>
+                                                                <TextBlock Grid.Column="0" Text="{Binding FormattedUsagePercentage}"
+                                                                           FontWeight="Bold" FontSize="11"
+                                                                           Foreground="{Binding UsagePercentage, Converter={StaticResource PercentageToBrushConverter}}"
+                                                                           VerticalAlignment="Center"/>
+                                                                <ProgressBar Grid.Column="1" Value="{Binding UsagePercentage}" Maximum="100" Minimum="0"
+                                                                             Style="{StaticResource ModernProgressBar}"
+                                                                             Foreground="{Binding UsagePercentage, Converter={StaticResource PercentageToBrushConverter}}"
+                                                                             VerticalAlignment="Center" Margin="4,0,0,0"/>
+                                                            </Grid>
+                                                        </DataTemplate>
+                                                    </DataGridTemplateColumn.CellTemplate>
+                                                </DataGridTemplateColumn>
+                                                <DataGridTextColumn x:Name="colHistDown" Header="下载消耗" Binding="{Binding FormattedDownloaded}" Width="1*"/>
+                                                <DataGridTextColumn x:Name="colHistUp" Header="上传消耗" Binding="{Binding FormattedUploaded}" Width="1*"/>
+                                                <DataGridTextColumn x:Name="colHistTotal" Header="该会话总计" Binding="{Binding FormattedTotal}" Width="1.2*"/>
+                                            </DataGrid.Columns>
+                                        </DataGrid>
+                                    </Grid>
+                                </Border>
+                            </Grid>
+                        </Grid>
+                    </Border>
+                </TabItem>
+            </TabControl>
+        </Border>
+
+        <!-- 5. Bottom Status Bar -->
+        <Border Grid.Row="4" Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="0,1,0,0" Padding="18,8">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock x:Name="txtEtwStatusDot" Text="●" FontSize="12" Foreground="#10B981" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="txtEtwStatus" Text="高性能网络监控已就绪" FontSize="11" Foreground="#475569" VerticalAlignment="Center"/>
+                </StackPanel>
+
+                <TextBlock x:Name="txtProcessCount" Grid.Column="1" HorizontalAlignment="Center" Text="监控中应用: 0" FontSize="11" Foreground="#64748B" VerticalAlignment="Center"/>
+
+                <TextBlock x:Name="lblStatusBrand" Grid.Column="2" Text="WhoEatWifi · 专为 Windows 打造" FontSize="11" Foreground="#94A3B8" VerticalAlignment="Center"/>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

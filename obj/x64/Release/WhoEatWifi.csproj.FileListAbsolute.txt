@@ -1,0 +1,13 @@
+d:\Github\WhoEatWifi\obj\x64\Release\WhoEatWifi.csprojResolveAssemblyReference.cache
+d:\Github\WhoEatWifi\obj\x64\Release\App.g.cs
+d:\Github\WhoEatWifi\obj\x64\Release\GeneratedInternalTypeHelper.g.cs
+d:\Github\WhoEatWifi\obj\x64\Release\WhoEatWifi_MarkupCompile.cache
+d:\Github\WhoEatWifi\obj\x64\Release\WhoEatWifi_MarkupCompile.lref
+d:\Github\WhoEatWifi\obj\x64\Release\MainWindow.baml
+d:\Github\WhoEatWifi\obj\x64\Release\MainWindow.g.cs
+d:\Github\WhoEatWifi\bin\Release\WhoEatWifi.exe
+d:\Github\WhoEatWifi\bin\Release\WhoEatWifi.pdb
+d:\Github\WhoEatWifi\obj\x64\Release\App.baml
+d:\Github\WhoEatWifi\obj\x64\Release\WhoEatWifi.g.resources
+d:\Github\WhoEatWifi\obj\x64\Release\WhoEatWifi.exe
+d:\Github\WhoEatWifi\obj\x64\Release\WhoEatWifi.pdb
