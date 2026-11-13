@@ -24,7 +24,7 @@ namespace WhoEatWifi.Tests
             s.StartTime = DateTime.Now.AddMinutes(-25);
             s.EndTime = DateTime.Now;
             failed += Assert("Duration calculation", s.Duration.TotalMinutes >= 24 && s.Duration.TotalMinutes <= 26);
-            failed += Assert("FormattedDuration contains 分钟", s.FormattedDuration.IndexOf("分") >= 0);
+            failed += Assert("FormattedDuration valid bilingual", !string.IsNullOrEmpty(s.FormattedDuration) && (s.FormattedDuration.IndexOf("m") >= 0 || s.FormattedDuration.IndexOf("分") >= 0));
 
             // Test 3: SessionHistoryManager Switch
             SessionHistoryManager mgr = new SessionHistoryManager();
@@ -81,6 +81,35 @@ namespace WhoEatWifi.Tests
             // Restore English as default per user requirement
             LanguageManager.CurrentLanguage = AppLanguage.English;
             failed += Assert("LanguageManager restore to English", LanguageManager.CurrentLanguage == AppLanguage.English);
+
+            // Test 7: Network Monitor snapshot & Admin check
+            NetworkSnapshotResult snapshot = IphlpNetworkMonitor.GetNetworkSnapshot();
+            failed += Assert("Network snapshot activities non-null", snapshot != null && snapshot.Activities != null);
+            bool isAdmin = IphlpNetworkMonitor.IsRunningAsAdmin();
+            failed += Assert("IsRunningAsAdmin callable", isAdmin == true || isAdmin == false);
+
+            // Test 8: Close Dialog Translations & Settings persistence
+            LanguageManager.CurrentLanguage = AppLanguage.Chinese;
+            failed += Assert("CloseDialogTitle ZH", LanguageManager.T("CloseDialogTitle") == "关闭选项");
+            failed += Assert("BtnMinimizeTray ZH", LanguageManager.T("BtnMinimizeTray") == "📥 最小化到托盘");
+            failed += Assert("BtnExitApp ZH", LanguageManager.T("BtnExitApp") == "❌ 退出程序");
+
+            LanguageManager.CurrentLanguage = AppLanguage.English;
+            failed += Assert("CloseDialogTitle EN", LanguageManager.T("CloseDialogTitle") == "Close Options");
+            failed += Assert("BtnMinimizeTray EN", LanguageManager.T("BtnMinimizeTray") == "📥 Minimize to Tray");
+            failed += Assert("BtnExitApp EN", LanguageManager.T("BtnExitApp") == "❌ Exit Program");
+
+            LanguageManager.SetCloseAction("minimize");
+            failed += Assert("GetCloseAction minimize", LanguageManager.GetCloseAction() == "minimize");
+            LanguageManager.SetCloseAction("exit");
+            failed += Assert("GetCloseAction exit", LanguageManager.GetCloseAction() == "exit");
+            LanguageManager.SetCloseAction("ask");
+            failed += Assert("GetCloseAction ask", LanguageManager.GetCloseAction() == "ask");
+
+            // Test 9: Precision Mode & Admin Status Check
+            NetworkStatsManager stats = new NetworkStatsManager();
+            failed += Assert("EtwStatus non-empty", !string.IsNullOrEmpty(stats.EtwStatus));
+            failed += Assert("IsPrecisionMode equals Admin or Active", stats.IsPrecisionMode == (IphlpNetworkMonitor.IsRunningAsAdmin() || IphlpNetworkMonitor.IsEStatsActive));
 
             Console.WriteLine(string.Format("=== Test Finished: {0} Failed ===", failed));
             return failed == 0 ? 0 : 1;

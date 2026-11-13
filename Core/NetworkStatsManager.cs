@@ -16,7 +16,9 @@ namespace WhoEatWifi.Core
 
         private readonly ObservableCollection<ProcessTrafficInfo> _processes;
         private readonly Dictionary<int, ProcessTrafficInfo> _processMap;
-        private readonly Dictionary<int, Tuple<ulong, ulong>> _lastTcpEStats;
+        private readonly Dictionary<string, Tuple<ulong, ulong>> _connectionStats;
+        private readonly Dictionary<string, int> _connectionLastSeenTick;
+        private int _tickCounter = 0;
 
         private string _activeInterfaceName;
         private long _lastTotalBytesReceived;
@@ -29,7 +31,6 @@ namespace WhoEatWifi.Core
         private WifiInfo _currentWifi;
         private long _budgetLimitBytes = 0; // 0 = no limit
         private bool _budgetExceededAlertTriggered = false;
-        private string _statusMessage = "高性能网络监控已启动";
 
         public event EventHandler<string> StatusChanged;
         public event EventHandler<long> BudgetExceeded;
@@ -71,12 +72,27 @@ namespace WhoEatWifi.Core
 
         public string EtwStatus
         {
-            get { return _statusMessage; }
+            get
+            {
+                if (IphlpNetworkMonitor.IsEStatsActive)
+                {
+                    return LanguageManager.T("StatusPrecision");
+                }
+                else
+                {
+                    return LanguageManager.T("StatusEstimated");
+                }
+            }
         }
 
         public bool IsEtwRunning
         {
             get { return true; }
+        }
+
+        public bool IsPrecisionMode
+        {
+            get { return IphlpNetworkMonitor.IsEStatsActive; }
         }
 
         public long BudgetLimitBytes
@@ -93,7 +109,8 @@ namespace WhoEatWifi.Core
         {
             _processes = new ObservableCollection<ProcessTrafficInfo>();
             _processMap = new Dictionary<int, ProcessTrafficInfo>();
-            _lastTcpEStats = new Dictionary<int, Tuple<ulong, ulong>>();
+            _connectionStats = new Dictionary<string, Tuple<ulong, ulong>>();
+            _connectionLastSeenTick = new Dictionary<string, int>();
             _historyManager = new SessionHistoryManager();
 
             _currentWifi = WifiHelper.GetCurrentWifiInfo();
@@ -107,10 +124,9 @@ namespace WhoEatWifi.Core
 
         public void Start()
         {
-            _statusMessage = "● 高性能网络监控已就绪 (TCP/UDP 全协议活跃跟踪)";
             if (StatusChanged != null)
             {
-                StatusChanged(this, _statusMessage);
+                StatusChanged(this, EtwStatus);
             }
 
             _timer.Start();
@@ -143,7 +159,8 @@ namespace WhoEatWifi.Core
                     }
                     _isFirstTick = true;
                     _budgetExceededAlertTriggered = false;
-                    _lastTcpEStats.Clear();
+                    _connectionStats.Clear();
+                    _connectionLastSeenTick.Clear();
                 }
 
                 // 2. Query Adapter Statistics
@@ -228,9 +245,10 @@ namespace WhoEatWifi.Core
                 }
 
                 // 3. Scan Active Network Sockets & Per-Process Attribution
-                Dictionary<int, PidNetworkActivity> activities = IphlpNetworkMonitor.GetActiveNetworkActivity();
+                _tickCounter++;
+                NetworkSnapshotResult snapshot = IphlpNetworkMonitor.GetNetworkSnapshot();
 
-                // Reset speeds to 0 for all existing processes
+                // Reset instantaneous speeds to 0 for all existing processes
                 foreach (var p in _processes)
                 {
                     p.DownloadSpeedBps = 0;
@@ -239,41 +257,70 @@ namespace WhoEatWifi.Core
 
                 long remainingDown = downDelta;
                 long remainingUp = upDelta;
-                int totalSockets = 0;
 
-                // First pass: Calculate direct EStats deltas if available
-                var directDeltas = new Dictionary<int, Tuple<long, long>>();
+                // First pass: Calculate connection-level EStats deltas
+                Dictionary<int, Tuple<long, long>> directDeltas = new Dictionary<int, Tuple<long, long>>();
 
-                foreach (var kvp in activities)
+                foreach (var conn in snapshot.TcpConnections)
                 {
-                    int pid = kvp.Key;
-                    PidNetworkActivity act = kvp.Value;
-                    totalSockets += act.TotalSocketCount;
+                    _connectionLastSeenTick[conn.ConnectionKey] = _tickCounter;
 
-                    if (act.TcpBytesIn > 0 || act.TcpBytesOut > 0)
+                    Tuple<ulong, ulong> last;
+                    if (_connectionStats.TryGetValue(conn.ConnectionKey, out last))
                     {
-                        Tuple<ulong, ulong> last;
-                        if (_lastTcpEStats.TryGetValue(pid, out last))
-                        {
-                            long estatsDown = (long)(act.TcpBytesIn >= last.Item1 ? act.TcpBytesIn - last.Item1 : 0);
-                            long estatsUp = (long)(act.TcpBytesOut >= last.Item2 ? act.TcpBytesOut - last.Item2 : 0);
+                        ulong dIn = conn.DataBytesIn >= last.Item1 ? conn.DataBytesIn - last.Item1 : 0;
+                        ulong dOut = conn.DataBytesOut >= last.Item2 ? conn.DataBytesOut - last.Item2 : 0;
 
-                            if (estatsDown > 0 || estatsUp > 0)
+                        long safeIn = (long)Math.Min((ulong)long.MaxValue, dIn);
+                        long safeOut = (long)Math.Min((ulong)long.MaxValue, dOut);
+
+                        if (safeIn > 0 || safeOut > 0)
+                        {
+                            Tuple<long, long> existing;
+                            if (directDeltas.TryGetValue(conn.ProcessId, out existing))
                             {
-                                directDeltas[pid] = Tuple.Create(estatsDown, estatsUp);
-                                remainingDown -= estatsDown;
-                                remainingUp -= estatsUp;
+                                directDeltas[conn.ProcessId] = Tuple.Create(existing.Item1 + safeIn, existing.Item2 + safeOut);
                             }
+                            else
+                            {
+                                directDeltas[conn.ProcessId] = Tuple.Create(safeIn, safeOut);
+                            }
+
+                            remainingDown -= safeIn;
+                            remainingUp -= safeOut;
                         }
-                        _lastTcpEStats[pid] = Tuple.Create(act.TcpBytesIn, act.TcpBytesOut);
+                    }
+
+                    _connectionStats[conn.ConnectionKey] = Tuple.Create(conn.DataBytesIn, conn.DataBytesOut);
+                }
+
+                // Prune closed connections not seen for > 15 ticks
+                if (_tickCounter % 30 == 0)
+                {
+                    List<string> stale = new List<string>();
+                    foreach (var kvp in _connectionLastSeenTick)
+                    {
+                        if (_tickCounter - kvp.Value > 15) stale.Add(kvp.Key);
+                    }
+                    for (int i = 0; i < stale.Count; i++)
+                    {
+                        _connectionStats.Remove(stale[i]);
+                        _connectionLastSeenTick.Remove(stale[i]);
                     }
                 }
 
                 if (remainingDown < 0) remainingDown = 0;
                 if (remainingUp < 0) remainingUp = 0;
 
+                // Calculate total active sockets (excludes all listening sockets)
+                int totalActiveSockets = 0;
+                foreach (var kvp in snapshot.Activities)
+                {
+                    totalActiveSockets += kvp.Value.TotalActiveSockets;
+                }
+
                 // Ensure all active networking processes exist in the UI model
-                foreach (var kvp in activities)
+                foreach (var kvp in snapshot.Activities)
                 {
                     int pid = kvp.Key;
                     PidNetworkActivity act = kvp.Value;
@@ -305,10 +352,10 @@ namespace WhoEatWifi.Core
                         pidUp += direct.Item2;
                     }
 
-                    // Distribute remaining adapter bandwidth proportionally by socket count
-                    if (totalSockets > 0 && (remainingDown > 0 || remainingUp > 0))
+                    // Distribute remaining adapter bandwidth proportionally by ACTIVE non-listening sockets
+                    if (totalActiveSockets > 0 && (remainingDown > 0 || remainingUp > 0) && act.TotalActiveSockets > 0)
                     {
-                        double weight = (double)act.TotalSocketCount / totalSockets;
+                        double weight = (double)act.TotalActiveSockets / totalActiveSockets;
                         pidDown += (long)(remainingDown * weight);
                         pidUp += (long)(remainingUp * weight);
                     }
@@ -368,7 +415,8 @@ namespace WhoEatWifi.Core
                 p.DownloadSpeedBps = 0;
                 p.UploadSpeedBps = 0;
             }
-            _lastTcpEStats.Clear();
+            _connectionStats.Clear();
+            _connectionLastSeenTick.Clear();
             _isFirstTick = true;
             _budgetExceededAlertTriggered = false;
         }

@@ -72,11 +72,17 @@
 - **零重启全屏即时刷新**：点击瞬间主界面标题、数据卡片、表头、按钮、右键托盘菜单及提示语全部实时更新。
 - **自动记忆偏好**：用户的语言选择会自动保存在程序同目录下的 `settings.ini` 中，下次打开依然有效。
 
-### 6. 🔒 100% 纯离线、隐私与零崩溃设计
-- **无入站监听端口**：软件不开启任何 Web 服务或 Socket 监听端口，杜绝黑客探测与利用风险。
-- **零外部网络通信**：不发送任何遥测数据、统计埋点或外部分析包，绝不泄露您的任何隐私。
-- **普通用户权限运行 (`asInvoker`)**：启动时不弹出烦人的 UAC 管理员提权确认框，绿色轻量。
-- **高可靠性内核级 API 封装**：采用 Windows 官方 IP Helper API (`GetExtendedTcpTable` / `GetExtendedUdpTable` / `GetPerTcpConnectionEStats`) 与 `System.Net.NetworkInformation`，告别易发生蓝屏或驱动崩溃的风险，并配有全局故障捕获机制 (`crash.log`)。
+### 6. 🔒 双模引擎架构与诚实透明机制
+- **标准模式 (免 UAC 弹窗, `asInvoker`)**：
+  - 普通权限开箱即用，绝不弹出烦人的管理员提权弹窗。
+  - 采用**智能活跃连接加权分摊算法**：自动过滤排除所有处于 `LISTEN`（监听状态）及无远程目标的空闲端口，彻底杜绝后台常驻程序（如 Steam、网盘空闲端口）无辜背锅的问题。
+- **精准监控模式 (右键管理员运行解锁)**：
+  - 以管理员身份运行时，系统自动激活 Windows 原生 **TCP EStats**（已严谨配置 1 字节对齐的 `TCP_ESTATS_DATA_RW_v0` 原生结构体）。
+  - 实现连接级别的物理逐字节精确计数。
+- **连接级生命周期字典跟踪 (Connection Lifecycle Tracking)**：
+  - 采用五元组（5-Tuple）连接粒度独立跟踪，而非简单的进程求和差值。
+  - 彻底解决短连接秒开秒关导致流量凭空漏算或回滚的历史难题。
+- **100% 纯离线与零后门**：不开放任何入站端口，不发起任何外联分析，无需安装易导致蓝屏的内核驱动。
 
 ---
 
@@ -114,10 +120,10 @@
 如需验证全部核心数据统计、百分比计算算法、网络切换感知、1小时历史淘汰与双语词典：
 
 ```powershell
-& "C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe" /target:exe /out:bin\TestRunner.exe Tests\CoreTests.cs Core\SessionHistoryManager.cs Core\ProcessResolver.cs Core\LanguageManager.cs Models\AppTrafficRecord.cs Models\NetworkSession.cs Models\ProcessTrafficInfo.cs Models\TrafficSegment.cs /reference:C:\WINDOWS\Microsoft.Net\assembly\GAC_64\PresentationCore\v4.0_4.0.0.0__31bf3856ad364e35\PresentationCore.dll /reference:C:\WINDOWS\Microsoft.Net\assembly\GAC_MSIL\WindowsBase\v4.0_4.0.0.0__31bf3856ad364e35\WindowsBase.dll
+& "C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe" /target:exe /out:bin\TestRunner.exe Tests\CoreTests.cs Core\SessionHistoryManager.cs Core\ProcessResolver.cs Core\LanguageManager.cs Core\IphlpNetworkMonitor.cs Models\AppTrafficRecord.cs Models\NetworkSession.cs Models\ProcessTrafficInfo.cs Models\TrafficSegment.cs /reference:C:\WINDOWS\Microsoft.Net\assembly\GAC_64\PresentationCore\v4.0_4.0.0.0__31bf3856ad364e35\PresentationCore.dll /reference:C:\WINDOWS\Microsoft.Net\assembly\GAC_MSIL\WindowsBase\v4.0_4.0.0.0__31bf3856ad364e35\WindowsBase.dll
 & "bin\TestRunner.exe"
 ```
-*(全部 25 项自动化单元测试均通过，0 错误)*。
+*(全部 27 项自动化单元测试均通过，0 错误)*。
 
 ---
 

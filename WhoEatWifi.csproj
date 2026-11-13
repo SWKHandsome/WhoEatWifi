@@ -66,6 +66,7 @@
     <Compile Include="UI\ValueConverters.cs" />
     <Compile Include="UI\TrayIconHelper.cs" />
     <Compile Include="UI\TrayManager.cs" />
+    <Compile Include="UI\CloseOptionDialog.cs" />
   </ItemGroup>
 
   <ItemGroup>

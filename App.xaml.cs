@@ -12,6 +12,16 @@ namespace WhoEatWifi
             AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
             DispatcherUnhandledException += App_DispatcherUnhandledException;
 
+            try
+            {
+                string oldFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "WhoEatWifi.exe.old");
+                if (File.Exists(oldFile))
+                {
+                    File.Delete(oldFile);
+                }
+            }
+            catch { }
+
             base.OnStartup(e);
         }
 

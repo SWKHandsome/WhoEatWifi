@@ -45,15 +45,22 @@ namespace WhoEatWifi.Models
             get
             {
                 TimeSpan d = Duration;
+                bool isEn = WhoEatWifi.Core.LanguageManager.CurrentLanguage == WhoEatWifi.Core.AppLanguage.English;
                 if (d.TotalHours >= 1)
                 {
-                    return string.Format("{0} 小时 {1} 分钟", (int)d.TotalHours, d.Minutes);
+                    return isEn ?
+                        string.Format("{0}h {1}m", (int)d.TotalHours, d.Minutes) :
+                        string.Format("{0} 小时 {1} 分钟", (int)d.TotalHours, d.Minutes);
                 }
                 if (d.TotalMinutes >= 1)
                 {
-                    return string.Format("{0} 分 {1} 秒", (int)d.TotalMinutes, d.Seconds);
+                    return isEn ?
+                        string.Format("{0}m {1}s", (int)d.TotalMinutes, d.Seconds) :
+                        string.Format("{0} 分 {1} 秒", (int)d.TotalMinutes, d.Seconds);
                 }
-                return string.Format("{0} 秒", (int)d.TotalSeconds);
+                return isEn ?
+                    string.Format("{0}s", (int)d.TotalSeconds) :
+                    string.Format("{0} 秒", (int)d.TotalSeconds);
             }
         }
 
@@ -61,11 +68,14 @@ namespace WhoEatWifi.Models
         {
             get
             {
+                bool isEn = WhoEatWifi.Core.LanguageManager.CurrentLanguage == WhoEatWifi.Core.AppLanguage.English;
                 if (EndTime.HasValue)
                 {
                     return string.Format("{0:HH:mm:ss} - {1:HH:mm:ss}", StartTime, EndTime.Value);
                 }
-                return string.Format("{0:HH:mm:ss} - 进行中...", StartTime);
+                return isEn ?
+                    string.Format("{0:HH:mm:ss} - Active...", StartTime) :
+                    string.Format("{0:HH:mm:ss} - 进行中...", StartTime);
             }
         }
 

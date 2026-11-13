@@ -243,10 +243,14 @@ namespace WhoEatWifi.Core
 
             try
             {
+                // Sanitize profileName against parameter injection and quotes
+                string safeProfile = profileName.Replace("\"", "").Replace("&", "").Replace("|", "").Trim();
+                if (string.IsNullOrEmpty(safeProfile)) return false;
+
                 string cost = enable ? "Fixed" : "Unrestricted";
                 ProcessStartInfo psi = new ProcessStartInfo();
                 psi.FileName = "netsh";
-                psi.Arguments = string.Format("wlan set profileparameter name=\"{0}\" cost={1}", profileName, cost);
+                psi.Arguments = string.Format("wlan set profileparameter name=\"{0}\" cost={1}", safeProfile, cost);
                 psi.CreateNoWindow = true;
                 psi.UseShellExecute = false;
                 using (Process p = Process.Start(psi))
@@ -255,8 +259,9 @@ namespace WhoEatWifi.Core
                     return p.ExitCode == 0;
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                Debug.WriteLine("ToggleMeteredConnection error: " + ex.Message);
                 return false;
             }
         }
@@ -267,9 +272,9 @@ namespace WhoEatWifi.Core
             {
                 Process.Start("ms-settings:network-wifi");
             }
-            catch
+            catch (Exception ex)
             {
-                // Ignore launch error
+                Debug.WriteLine("OpenWifiSettings error: " + ex.Message);
             }
         }
     }

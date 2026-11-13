@@ -69,21 +69,77 @@ namespace WhoEatWifi.Core
             return val;
         }
 
+        public static string GetSetting(string key, string defaultValue)
+        {
+            try
+            {
+                if (!File.Exists(SettingsFile)) return defaultValue;
+                string[] lines = File.ReadAllLines(SettingsFile);
+                string prefix = key + "=";
+                foreach (string line in lines)
+                {
+                    string trimmed = line.Trim();
+                    if (trimmed.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return trimmed.Substring(prefix.Length).Trim();
+                    }
+                }
+            }
+            catch { }
+            return defaultValue;
+        }
+
+        public static void SetSetting(string key, string value)
+        {
+            try
+            {
+                List<string> lines = new List<string>();
+                if (File.Exists(SettingsFile))
+                {
+                    lines.AddRange(File.ReadAllLines(SettingsFile));
+                }
+                string prefix = key + "=";
+                bool updated = false;
+                for (int i = 0; i < lines.Count; i++)
+                {
+                    if (lines[i].Trim().StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                    {
+                        lines[i] = string.Format("{0}={1}", key, value);
+                        updated = true;
+                        break;
+                    }
+                }
+                if (!updated)
+                {
+                    lines.Add(string.Format("{0}={1}", key, value));
+                }
+                File.WriteAllLines(SettingsFile, lines.ToArray());
+            }
+            catch { }
+        }
+
+        public static string GetCloseAction()
+        {
+            return GetSetting("CloseAction", "ask");
+        }
+
+        public static void SetCloseAction(string action)
+        {
+            SetSetting("CloseAction", action);
+        }
+
         private static void LoadLanguagePreference()
         {
             try
             {
-                if (File.Exists(SettingsFile))
+                string lang = GetSetting("Language", "en");
+                if (string.Equals(lang, "zh", StringComparison.OrdinalIgnoreCase))
                 {
-                    string content = File.ReadAllText(SettingsFile).Trim();
-                    if (content.IndexOf("Language=en", StringComparison.OrdinalIgnoreCase) >= 0)
-                    {
-                        _currentLanguage = AppLanguage.English;
-                    }
-                    else if (content.IndexOf("Language=zh", StringComparison.OrdinalIgnoreCase) >= 0)
-                    {
-                        _currentLanguage = AppLanguage.Chinese;
-                    }
+                    _currentLanguage = AppLanguage.Chinese;
+                }
+                else
+                {
+                    _currentLanguage = AppLanguage.English;
                 }
             }
             catch { }
@@ -91,12 +147,7 @@ namespace WhoEatWifi.Core
 
         private static void SaveLanguagePreference(AppLanguage lang)
         {
-            try
-            {
-                string val = lang == AppLanguage.English ? "Language=en" : "Language=zh";
-                File.WriteAllText(SettingsFile, val);
-            }
-            catch { }
+            SetSetting("Language", lang == AppLanguage.English ? "en" : "zh");
         }
 
         private static void InitTranslations()
@@ -172,9 +223,19 @@ namespace WhoEatWifi.Core
             Add("ColHistoryTotal", "该会话总计", "Session Total");
 
             // === Status Bar ===
-            Add("StatusMonitorReady", "● 高性能网络监控已就绪 (TCP/UDP 全协议活跃跟踪)", "● Network monitor active (TCP/UDP socket tracking)");
+            Add("StatusPrecision", "● 精准字节监控模式 (管理员权限)", "● Precision Byte Monitoring Active (Admin)");
+            Add("StatusEstimated", "● 智能权重推算模式 (普通权限)", "● Smart Activity Attribution Mode (Standard User)");
+            Add("StatusMonitorReady", "● 网络监控运行中", "● Network Monitor Active");
             Add("StatusAppsCount", "监控中应用: {0}", "Active Apps: {0}");
             Add("StatusBrand", "WhoEatWifi · 专为 Windows 打造", "WhoEatWifi · Built for Windows");
+
+            // === Close Dialog ===
+            Add("CloseDialogTitle", "关闭选项", "Close Options");
+            Add("CloseDialogPrompt", "你想将程序最小化到系统托盘继续在后台守护 Wi-Fi，还是直接退出程序？", "Do you want to minimize to the System Tray to continue monitoring Wi-Fi in the background, or exit the program?");
+            Add("BtnMinimizeTray", "📥 最小化到托盘", "📥 Minimize to Tray");
+            Add("BtnExitApp", "❌ 退出程序", "❌ Exit Program");
+            Add("BtnCancel", "取消", "Cancel");
+            Add("ChkRememberCloseChoice", "记住我的选择，以后不再询问", "Remember my choice and do not ask again");
 
             // === Tray Menu & Tooltip ===
             Add("TrayTitle", "WhoEatWifi 流量卫士", "WhoEatWifi Data Guard");

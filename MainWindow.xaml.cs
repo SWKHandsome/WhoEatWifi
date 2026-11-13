@@ -22,7 +22,6 @@ namespace WhoEatWifi
         private int _sortMode = 0; // 0 = UsagePercentage, 1 = DownloadSpeed, 2 = DisplayName
         private bool _isSearchPlaceholder = true;
         private bool _isExplicitExit = false;
-        private bool _firstMinimizeNotice = true;
         private bool _isUpdatingLanguage = false;
 
         public MainWindow()
@@ -48,10 +47,12 @@ namespace WhoEatWifi
             // Bind history sessions
             lstHistorySessions.ItemsSource = _statsManager.HistoryManager.HistorySessions;
 
-            // Initialize Language ComboBox & text
-            _isUpdatingLanguage = true;
-            cboLanguage.SelectedIndex = LanguageManager.CurrentLanguage == AppLanguage.English ? 0 : 1;
-            _isUpdatingLanguage = false;
+            // Initialize Language ComboBox & text safely after all elements are loaded
+            if (cboLanguage != null)
+            {
+                cboLanguage.SelectedIndex = LanguageManager.CurrentLanguage == AppLanguage.English ? 0 : 1;
+                cboLanguage.SelectionChanged += OnLanguageChanged;
+            }
             UpdateLanguageUi();
 
             // UI Refresh timer (every 1 second)
@@ -77,6 +78,8 @@ namespace WhoEatWifi
 
         private void UpdateLanguageUi()
         {
+            if (txtBadgeTitle == null || chkAlwaysOnTop == null || tabRealtime == null) return;
+
             this.Title = LanguageManager.T("AppTitle");
             txtBadgeTitle.Text = LanguageManager.T("BadgeTitle");
             txtAppSubtitle.Text = LanguageManager.T("AppSubtitle");
@@ -151,24 +154,58 @@ namespace WhoEatWifi
 
         private void MainWindow_Closing(object sender, CancelEventArgs e)
         {
-            if (!_isExplicitExit)
+            if (_isExplicitExit)
             {
-                e.Cancel = true;
-                this.Hide();
-
-                if (_firstMinimizeNotice)
-                {
-                    _trayManager.ShowNotification(
-                        LanguageManager.T("TrayNoticeTitle"),
-                        LanguageManager.T("TrayNoticeText"),
-                        System.Windows.Forms.ToolTipIcon.Info);
-                    _firstMinimizeNotice = false;
-                }
+                if (_trayManager != null) _trayManager.Dispose();
+                if (_statsManager != null) _statsManager.Dispose();
                 return;
             }
 
-            if (_trayManager != null) _trayManager.Dispose();
-            if (_statsManager != null) _statsManager.Dispose();
+            string savedAction = LanguageManager.GetCloseAction();
+            if (string.Equals(savedAction, "minimize", StringComparison.OrdinalIgnoreCase))
+            {
+                e.Cancel = true;
+                this.Hide();
+                return;
+            }
+            if (string.Equals(savedAction, "exit", StringComparison.OrdinalIgnoreCase))
+            {
+                _isExplicitExit = true;
+                if (_trayManager != null) _trayManager.Dispose();
+                if (_statsManager != null) _statsManager.Dispose();
+                Application.Current.Shutdown();
+                return;
+            }
+
+            CloseOptionDialog dialog = new CloseOptionDialog();
+            dialog.Owner = this;
+            dialog.ShowDialog();
+
+            if (dialog.SelectedAction == CloseActionChoice.Minimize)
+            {
+                if (dialog.RememberChoice)
+                {
+                    LanguageManager.SetCloseAction("minimize");
+                }
+                e.Cancel = true;
+                this.Hide();
+            }
+            else if (dialog.SelectedAction == CloseActionChoice.Exit)
+            {
+                if (dialog.RememberChoice)
+                {
+                    LanguageManager.SetCloseAction("exit");
+                }
+                _isExplicitExit = true;
+                if (_trayManager != null) _trayManager.Dispose();
+                if (_statsManager != null) _statsManager.Dispose();
+                Application.Current.Shutdown();
+            }
+            else
+            {
+                // Canceled
+                e.Cancel = true;
+            }
         }
 
         private void RestoreWindow()
@@ -195,14 +232,6 @@ namespace WhoEatWifi
         private void OnMinimizeToTrayClick(object sender, RoutedEventArgs e)
         {
             this.Hide();
-            if (_firstMinimizeNotice)
-            {
-                _trayManager.ShowNotification(
-                    LanguageManager.T("TrayNoticeTitle"),
-                    LanguageManager.T("TrayNoticeText"),
-                    System.Windows.Forms.ToolTipIcon.Info);
-                _firstMinimizeNotice = false;
-            }
         }
 
         private void OnUiTick(object sender, EventArgs e)
@@ -259,17 +288,17 @@ namespace WhoEatWifi
 
             // 5. Status Bar
             txtProcessCount.Text = LanguageManager.T("StatusAppsCount", _statsManager.Processes.Count);
-            txtEtwStatus.Text = LanguageManager.T("StatusMonitorReady");
+            txtEtwStatus.Text = _statsManager.EtwStatus;
 
-            if (_statsManager.IsEtwRunning)
+            if (_statsManager.IsPrecisionMode)
             {
                 txtEtwStatusDot.Text = "●";
-                txtEtwStatusDot.Foreground = new SolidColorBrush(Color.FromRgb(16, 185, 129)); // green
+                txtEtwStatusDot.Foreground = new SolidColorBrush(Color.FromRgb(16, 185, 129)); // green for precision EStats
             }
             else
             {
-                txtEtwStatusDot.Text = "▲";
-                txtEtwStatusDot.Foreground = new SolidColorBrush(Color.FromRgb(245, 158, 11)); // amber
+                txtEtwStatusDot.Text = "●";
+                txtEtwStatusDot.Foreground = new SolidColorBrush(Color.FromRgb(37, 99, 235)); // blue for smart attribution
             }
 
             // 6. Update Tray Status & Tooltip

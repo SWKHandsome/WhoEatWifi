@@ -72,11 +72,18 @@ Background tasks such as **Windows Update**, **Microsoft OneDrive sync**, game l
 - **Zero-Restart Live Refresh**: All titles, dashboard cards, grid headers, action buttons, tray menus, and system alerts update instantaneously.
 - **Persistent Preferences**: Saves your choice to `settings.ini` alongside the executable.
 
-### 6. 🔒 100% Safe, Offline & Privacy-Compliant
-- **No Inbound Listening Ports**: Does not open any socket listeners, web servers, or proxy servers.
-- **No Outbound Telemetry**: Zero analytics, tracking, or network requests sent.
-- **Standard User Privilege (`asInvoker`)**: Launches instantly without nagging UAC administrator prompts.
-- **Engineered for Zero Crashes**: Uses stable Windows IP Helper APIs (`GetExtendedTcpTable`, `GetExtendedUdpTable`, `GetPerTcpConnectionEStats`) and `System.Net.NetworkInformation.NetworkInterface` with comprehensive crash logging (`crash.log`).
+### 6. 🔒 Dual-Engine Architecture & Honest Transparency
+- **Standard Mode (Zero UAC, `asInvoker`)**:
+  - Runs out-of-the-box as a standard user without annoying UAC popups.
+  - Employs **Active Socket-Weighted Attribution**: Filters out idle `LISTEN` ports and wildcards to prevent passive background processes from receiving false traffic weight.
+  - Perfect for lightweight, everyday mobile hotspot guarding.
+- **Precision Mode (Run as Administrator)**:
+  - When elevated with administrator privileges, unlocks Windows native **TCP EStats** (`GetPerTcpConnectionEStats`) with 1-byte aligned Win32 structures (`TCP_ESTATS_DATA_RW_v0`).
+  - Delivers hardware-level byte-exact TCP transfer metrics.
+- **Connection-Level Lifecycle Tracking**:
+  - Tracks individual 5-tuple connections rather than fragile process-wide sums.
+  - Guarantees that short-lived connections that close within seconds **never lose their accumulated data** or cause counters to drop.
+- **100% Offline & Safe**: Zero inbound listening ports, zero outbound telemetry, no third-party kernel drivers installed.
 
 ---
 
@@ -114,10 +121,10 @@ WhoEatWifi can be built with the standard MSBuild engine included with every mod
 To verify all core statistics, percentage calculations, network switch detection, 1-hour pruning, and bilingual dictionaries:
 
 ```powershell
-& "C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe" /target:exe /out:bin\TestRunner.exe Tests\CoreTests.cs Core\SessionHistoryManager.cs Core\ProcessResolver.cs Core\LanguageManager.cs Models\AppTrafficRecord.cs Models\NetworkSession.cs Models\ProcessTrafficInfo.cs Models\TrafficSegment.cs /reference:C:\WINDOWS\Microsoft.Net\assembly\GAC_64\PresentationCore\v4.0_4.0.0.0__31bf3856ad364e35\PresentationCore.dll /reference:C:\WINDOWS\Microsoft.Net\assembly\GAC_MSIL\WindowsBase\v4.0_4.0.0.0__31bf3856ad364e35\WindowsBase.dll
+& "C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe" /target:exe /out:bin\TestRunner.exe Tests\CoreTests.cs Core\SessionHistoryManager.cs Core\ProcessResolver.cs Core\LanguageManager.cs Core\IphlpNetworkMonitor.cs Models\AppTrafficRecord.cs Models\NetworkSession.cs Models\ProcessTrafficInfo.cs Models\TrafficSegment.cs /reference:C:\WINDOWS\Microsoft.Net\assembly\GAC_64\PresentationCore\v4.0_4.0.0.0__31bf3856ad364e35\PresentationCore.dll /reference:C:\WINDOWS\Microsoft.Net\assembly\GAC_MSIL\WindowsBase\v4.0_4.0.0.0__31bf3856ad364e35\WindowsBase.dll
 & "bin\TestRunner.exe"
 ```
-*(All 25 automated unit tests pass with 0 failures).*
+*(All 27 automated unit tests pass with 0 failures).*
 
 ---
 
